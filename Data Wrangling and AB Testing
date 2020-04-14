@@ -1,0 +1,177 @@
+#1
+SELECT 
+  * 
+FROM 
+  dsv1069.final_assignments_qa
+
+--ANS: NO, this table does not have enough information for 30-day view_binary, it is missing a date variable.
+LIMIT 100
+
+
+#2
+SELECT 
+  item_id,
+  test_a AS test_assignment,
+  (CASE WHEN test_a  IS NOT NULL
+       THEN 'item_test_1'
+       ELSE NULL
+       END) AS test_number,
+  CAST('2020-03-01' AS DATE) AS test_start_date
+FROM 
+  dsv1069.final_assignments_qa
+UNION
+  (
+  SELECT 
+    item_id,
+    test_b AS test_assignment,
+    (CASE WHEN test_b  IS NOT NULL
+       THEN 'item_test_2'
+       ELSE NULL
+       END) AS test_number,
+     CAST('2020-03-01' AS DATE) AS test_start_date
+  FROM 
+    dsv1069.final_assignments_qa
+  )
+  UNION
+   (SELECT 
+      item_id,
+      test_c AS test_assignment,
+      (CASE WHEN test_c  IS NOT NULL
+       THEN 'item_test_3'
+       ELSE NULL
+       END) AS test_number,
+      CAST('2020-03-01' AS DATE) AS test_start_date
+    FROM 
+      dsv1069.final_assignments_qa
+    )
+    UNION
+      (SELECT 
+        item_id,
+        test_d AS test_assignment,
+        (CASE WHEN test_d  IS NOT NULL
+        THEN 'item_test_4'
+        ELSE NULL
+        END) AS test_number,
+        CAST('2020-03-01' AS DATE) AS test_start_date
+      FROM 
+        dsv1069.final_assignments_qa
+      )
+      UNION
+        (SELECT 
+           item_id,
+           test_e AS test_assignment,
+           (CASE WHEN test_e  IS NOT NULL
+           THEN 'item_test_5'
+           ELSE NULL
+           END) AS test_number,
+           CAST('2020-03-01' AS DATE) AS test_start_date
+        FROM 
+          dsv1069.final_assignments_qa
+        )
+        UNION
+          (
+          SELECT 
+            item_id,
+            test_f AS test_assignment,
+            (CASE WHEN test_f  IS NOT NULL
+            THEN 'item_test_6'
+            ELSE NULL
+            END) AS test_number,
+            CAST('2020-03-01' AS DATE) AS test_start_date
+        FROM 
+          dsv1069.final_assignments_qa
+          )
+          
+#3
+
+SELECT 
+  test_assignment,
+  COUNT(item_id) AS item_id,
+  SUM(order_binary_30day) AS order_binary_30days
+FROM  
+  (
+  SELECT
+    final_assign.item_id,
+    final_assign.test_assignment,
+    final_assign.test_number,
+    MAX(CASE WHEN orders.created_at > final_assign.test_start_date 
+           AND DATE_PART('day', orders.created_at-final_assign.test_start_date) <= 30
+           THEN 1
+           ELSE 0
+           END) AS order_binary_30day
+  FROM
+    (SELECT 
+      item_id, 
+      test_assignment,
+      test_number,
+      test_start_date
+    FROM 
+      dsv1069.final_assignments
+      ) final_assign
+  LEFT OUTER JOIN
+    dsv1069.orders
+  ON orders.item_id = final_assign.item_id
+  GROUP BY 
+    final_assign.item_id,
+    final_assign.test_assignment,
+    final_assign.test_number
+  ) order_binary
+WHERE test_number = 'item_test_2'
+GROUP BY
+  test_assignment
+
+
+#4
+SELECT 
+  test_assignment,
+  COUNT(DISTINCT item_id) AS item_id,
+  SUM(view_binary_30day) AS view_binary,
+  AVG(view_binary_30day) AS avg_view_binary
+FROM  
+  (
+  SELECT
+    final_assign.item_id,
+    final_assign.test_assignment,
+    final_assign.test_number,
+    MAX(CASE WHEN views.event_time > final_assign.test_start_date 
+           AND DATE_PART('day', views.event_time-final_assign.test_start_date) <= 30
+           THEN 1
+           ELSE 0
+           END) AS view_binary_30day
+    
+  FROM
+    (SELECT 
+      item_id, 
+      test_assignment,
+      test_number,
+      test_start_date
+    FROM 
+      dsv1069.final_assignments
+      ) final_assign
+  LEFT OUTER JOIN
+     (
+     SELECT 
+       event_time,
+       CASE WHEN parameter_name = 'item_id'
+                 THEN CAST(parameter_value AS INT)
+                 ELSE NULL
+                 END AS item_id
+     FROM dsv1069.events
+     WHERE event_name = 'view_item'
+     ) views
+
+  ON 
+    views.item_id = final_assign.item_id
+  GROUP BY 
+    final_assign.item_id,
+    final_assign.test_assignment,
+    final_assign.test_number
+  ) view_binary
+WHERE test_number = 'item_test_2'
+GROUP BY
+  test_assignment
+  
+  
+-- p-value: 0.20
+-- improvement of -1.4% - 6.5%
+LIMIT 100
